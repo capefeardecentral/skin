@@ -80,10 +80,11 @@ contract OrderBook is SyntheticTokenPair {
         // otherwise sort and place the bid
         while (true) {
             // if bid price is lower than the current price
-            if (_bid.price < _bestBid.price) {
+            if (_bid.price <= _bestBid.price) {
                 // if there is a lower price
                 if (_bestBid.lower_price != 0) {
                     // move to the lower price
+                    // TODO this is confusing, maybe use a different variable name
                     _bestBidId = _bestBid.lower_price;
                     _bestBid = bids[_token][_bestBid.lower_price];
                 } else {
@@ -101,16 +102,16 @@ contract OrderBook is SyntheticTokenPair {
                     return;
                 }
             } else {
-                // if bid price is less than or equal to the current price
+                // if bid price is greater than the current price
                 bids[_token][bidHead[_token]] = Order({
-                higher_price : _bestBidId,
-                lower_price : _bestBid.lower_price,
+                higher_price : _bestBid.higher_price,
+                lower_price : _bestBidId,
                 price : _bid.price,
                 maker : msg.sender,
                 amount : _bid.amount
                 });
-                bids[_token][_bestBid.lower_price].higher_price = bidHead[_token];
-                bids[_token][_bestBidId].lower_price = bidHead[_token];
+                bids[_token][_bestBid.higher_price].lower_price = bidHead[_token];
+                bids[_token][_bestBidId].higher_price = bidHead[_token];
                 bidHead[_token] += 1;
                 escrow += msg.value;
                 return;
