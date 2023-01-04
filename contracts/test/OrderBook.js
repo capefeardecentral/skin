@@ -82,5 +82,39 @@ describe('OrderBook', () => {
       expect(charlesBid.lower_price).to.equal(1);
     });
 
+    it('sorts a matching bid under the existing bid', async () => {
+      const {orderBook, bob, alice} = await loadFixture(deployOrderBook);
+      await orderBook.connect(bob).make_bid(0, {price: 10000, amount: 5}, {value: 50000});
+      await orderBook.connect(alice).make_bid(0, {price: 10000, amount: 5}, {value: 50000});
+
+      expect(await orderBook.escrow()).to.equal(100000);
+      expect(await orderBook.bestBidId(0)).to.equal(1);
+      expect(await orderBook.bidHead(0)).to.equal(3);
+
+      const bobsBid = await orderBook.bids(0, 1);
+      const alicesBid = await orderBook.bids(0, 2);
+
+      expect(bobsBid.higher_price).to.equal(0);
+      expect(bobsBid.lower_price).to.equal(2);
+      expect(alicesBid.higher_price).to.equal(1);
+      expect(alicesBid.lower_price).to.equal(0);
+    });
+  });
+
+  describe('match_token_pair_bids()', () => {
+    it('mints a token pair for symmetric bids', async () => {
+      const {orderBook, bob, alice} = await loadFixture(deployOrderBook);
+      await orderBook.connect(bob).make_bid(0, {price: 10000, amount: 5}, {value: 50000});
+      await orderBook.connect(alice).make_bid(1, {price: 10000, amount: 5}, {value: 50000});
+
+      // TODO I think we should split out escrow and token pool
+      // expect(await orderBook.escrow()).to.equal(0);
+      expect(await orderBook.ledger(bob.address, 0)).to.equal(5);
+      expect(await orderBook.ledger(alice.address, 1)).to.equal(5);
+      expect(await orderBook.bestBidId(0)).to.equal(0);
+      expect(await orderBook.bestBidId(1)).to.equal(0);
+      expect(await orderBook.bidHead(0)).to.equal(2);
+
+    });
   });
 });

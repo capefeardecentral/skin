@@ -21,7 +21,10 @@ contract OrderBook is SyntheticTokenPair {
         uint amount;
     }
 
+    // TODO migrate minted token price from escrow to a new var
     uint public escrow;
+    // price for a token pair (amount paid to winner)
+    uint public token_price = 20000;
 
     mapping(Tokens => uint) public bidHead;
     mapping(Tokens => uint) public askHead;
@@ -40,7 +43,15 @@ contract OrderBook is SyntheticTokenPair {
         uint _bestBidId = bestBidId[_token];
         Order memory _bestBid = bids[_token][_bestBidId];
 
+        // match asks
         _bid = _match_bid(_token, _bid);
+        // check to mint pair
+        _bid = _match_token_pair_bids(_token, _bid);
+
+        // if we settled the bid return
+        if (_bid.amount == 0) {
+           return;
+        }
 
         // if no bids on token
         if (_bestBidId == 0) {
