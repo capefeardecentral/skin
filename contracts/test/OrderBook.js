@@ -18,6 +18,19 @@ describe('OrderBook', () => {
     return {orderBook, owner, bob, alice, charles};
   }
 
+  async function deployOrderBookWithOrders() {
+    // Contracts are deployed using the first signer/account by default
+    const [owner, bob, alice, charles] = await ethers.getSigners();
+
+    const OrderBook = await ethers.getContractFactory('OrderBook');
+    const orderBook = await OrderBook.deploy();
+    await orderBook.connect(bob).make_bid(0, {price: 10000, amount: 5}, {value: 50000});
+    await orderBook.connect(alice).make_bid(1, {price: 10000, amount: 5}, {value: 50000});
+
+    return {orderBook, owner, bob, alice, charles};
+
+  }
+
   describe('Deployment', () => {
     it('Should successfully deploy', async () => {
       const {orderBook} = await loadFixture(deployOrderBook);
@@ -116,5 +129,35 @@ describe('OrderBook', () => {
       expect(await orderBook.bidHead(0)).to.equal(2);
 
     });
+  });
+
+  describe('make_ask', async () => {
+    it('allows a user to place an unmatched ask', async () => {
+      const {orderBook, bob} = await loadFixture(deployOrderBookWithOrders);
+      await orderBook.connect(bob).make_ask(0, {price: 11000, amount: 5});
+
+      expect(await orderBook.bestAskId(0)).to.equal(1);
+      expect(await orderBook.askHead(0)).to.equal(2);
+      const {higher_price, lower_price, price, maker, amount} = await orderBook.asks(0, 1);
+      expect(higher_price).to.equal(0);
+      expect(lower_price).to.equal(0);
+      expect(price).to.equal(11000);
+      expect(maker).to.equal(bob.address);
+      expect(amount).to.equal(5);
+    });
+
+    it('allows a user to place a better ask', async () => {
+      const {orderBook, bob} = await loadFixture(deployOrderBookWithOrders);
+      await orderBook.connect(bob).make_ask(0, {price: 11000, amount: 3});
+      await orderBook.connect(bob).make_ask(0, {price: 10500, amount: 2});
+      const higherAsk = await orderBook.asks(0, 1);
+      const lowerAsk = await orderBook.asks(0, 2);
+      expect(await orderBook.bestAskId(0)).to.equal(2);
+      expect(lowerAsk.higher_price).to.equal(1);
+      expect(lowerAsk.lower_price).to.equal(0);
+      expect(higherAsk.higher_price).to.equal(0);
+      expect(higherAsk.lower_price).to.equal(2);
+    });
+
   });
 });
