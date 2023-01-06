@@ -35,6 +35,15 @@ contract OrderBook is SyntheticTokenPair {
     mapping(Tokens => mapping(uint => Order)) public bids;
     mapping(Tokens => mapping(uint => Order)) public asks;
 
+    constructor() {
+        // TODO migrate minted token price from escrow to a new var
+        escrow = 0;
+        bidHead[Tokens.NO] = 1;
+        bidHead[Tokens.YES] = 1;
+        askHead[Tokens.NO] = 1;
+        askHead[Tokens.YES] = 1;
+    }
+
     function make_bid(Tokens _token, BidAsk memory _bid) public payable {
         require(_bid.price > 0, "Price must be greater than 0");
         require(_bid.amount > 0, "Amount must be greater than 0");
@@ -50,14 +59,13 @@ contract OrderBook is SyntheticTokenPair {
 
         // if we settled the bid return
         if (_bid.amount == 0) {
-           return;
+            return;
         }
 
         // if no bids on token
         if (_bestBidId == 0) {
             // initialize the bid book
-            bidHead[_token] = 1;
-            bestBidId[_token] = 1;
+            bestBidId[_token] = bidHead[_token];
             bids[_token][1] = Order({
             higher_price : 0,
             lower_price : 0,
@@ -140,8 +148,7 @@ contract OrderBook is SyntheticTokenPair {
         // if no asks on token
         if (bestAskId[_token] == 0) {
             // initialize the ask book
-            askHead[_token] = 1;
-            bestAskId[_token] = 1;
+            bestAskId[_token] = askHead[_token];
             asks[_token][1] = Order({
             higher_price : 0,
             lower_price : 0,
@@ -280,6 +287,10 @@ contract OrderBook is SyntheticTokenPair {
             // update escrow
             escrow -= _bid.amount * _bid.price;
             // return remaining bid
+            if (_bid.amount == _bestAsk.amount) {
+                delete (asks[_token][_bestAskId]);
+                bestAskId[_token] = _bestAsk.higher_price;
+            }
             _bid.amount = 0;
             return _bid;
         } else {

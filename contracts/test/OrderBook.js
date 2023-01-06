@@ -55,6 +55,21 @@ describe('OrderBook', () => {
       expect(amount).to.equal(5);
     });
 
+    it('creates a bid after an initial bid is taken', async () => {
+      const {orderBook, bob, charles} = await loadFixture(deployOrderBookWithOrders);
+      await orderBook.connect(bob).make_ask(0, {price: 11000, amount: 2});
+      await orderBook.connect(charles).make_bid(0, {price: 11000, amount: 2}, {value: 22000});
+      await orderBook.connect(bob).make_bid(0, {price: 11000, amount: 2}, {value: 22000});
+
+      const newBid = await orderBook.bids(0, 2);
+      const oldBid = await orderBook.bids(0, 1);
+
+      expect(newBid.higher_price).to.equal(0);
+      expect(newBid.lower_price).to.equal(0);
+      expect(await orderBook.bestBidId(0)).to.equal(2);
+      expect(await orderBook.bidHead(0)).to.equal(3);
+    });
+
     it('places a higher bid', async () => {
       const {orderBook, bob, alice} = await loadFixture(deployOrderBook);
       await orderBook.connect(bob).make_bid(0, {price: 10000, amount: 5}, {value: 50000});
@@ -157,6 +172,49 @@ describe('OrderBook', () => {
       expect(lowerAsk.lower_price).to.equal(0);
       expect(higherAsk.higher_price).to.equal(0);
       expect(higherAsk.lower_price).to.equal(2);
+    });
+
+    it('sorts an equal ask under the existing ask', async () => {
+      const {orderBook, bob} = await loadFixture(deployOrderBookWithOrders);
+      await orderBook.connect(bob).make_ask(0, {price: 11000, amount: 2});
+      await orderBook.connect(bob).make_ask(0, {price: 11000, amount: 3});
+
+      const firstAsk = await orderBook.asks(0, 1);
+      const secondAsk = await orderBook.asks(0, 2);
+
+      expect(await orderBook.bestAskId(0)).to.equal(1);
+      expect(firstAsk.amount).to.equal(2)
+      expect(secondAsk.amount).to.equal(3)
+      expect(secondAsk.lower_price).to.equal(1);
+      expect(secondAsk.higher_price).to.equal(0);
+      expect(firstAsk.lower_price).to.equal(0);
+      expect(firstAsk.higher_price).to.equal(2);
+    });
+
+    it('settles a matched ask', async () => {
+      const {orderBook, bob, charles} = await loadFixture(deployOrderBookWithOrders);
+      const prevHead = await orderBook.bidHead(0);
+      await orderBook.connect(bob).make_ask(0, {price: 11000, amount: 2});
+      await orderBook.connect(charles).make_bid(0, {price: 11000, amount: 2}, {value: 22000});
+
+      expect(await orderBook.bidHead(0)).to.equal(prevHead);
+      expect(await orderBook.ledger(bob.address, 0)).to.equal(3);
+      expect(await orderBook.ledger(charles.address, 0)).to.equal(2);
+    });
+
+    it('successfully places an ask after the only ask is settled', async () => {
+      const {orderBook, bob, charles} = await loadFixture(deployOrderBookWithOrders);
+      await orderBook.connect(bob).make_ask(0, {price: 11000, amount: 2});
+      await orderBook.connect(charles).make_bid(0, {price: 11000, amount: 2}, {value: 22000});
+      await orderBook.connect(bob).make_ask(0, {price: 11000, amount: 3});
+
+      const newAsk = await orderBook.asks(0, 2);
+      const oldAsk = await orderBook.asks(0, 1);
+
+      expect(newAsk.higher_price).to.equal(0);
+      expect(newAsk.lower_price).to.equal(0);
+      expect(await orderBook.bestAskId(0)).to.equal(2);
+      expect(await orderBook.askHead(0)).to.equal(3);
     });
 
   });
