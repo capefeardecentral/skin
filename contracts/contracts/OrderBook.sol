@@ -6,6 +6,10 @@ import "./SyntheticTokenPair.sol";
 // Uncomment this line to use console.log
 // import "hardhat/console.sol";
 
+// TODO
+// - handle and test transfer of native currency
+// - take bid / cancel bid / take ask / cancel ask
+
 // OrderBook is a simple order book for bid ask orders on both ends of STP
 contract OrderBook is SyntheticTokenPair {
     struct Order {
@@ -66,7 +70,7 @@ contract OrderBook is SyntheticTokenPair {
         if (_bestBidId == 0) {
             // initialize the bid book
             bestBidId[_token] = bidHead[_token];
-            bids[_token][1] = Order({
+            bids[_token][bidHead[_token]] = Order({
             higher_price : 0,
             lower_price : 0,
             price : _bid.price,
@@ -145,11 +149,15 @@ contract OrderBook is SyntheticTokenPair {
 
         _ask = _match_ask(_token, _ask);
 
+        if (_ask.amount == 0) {
+            return;
+        }
+
         // if no asks on token
         if (bestAskId[_token] == 0) {
             // initialize the ask book
             bestAskId[_token] = askHead[_token];
-            asks[_token][1] = Order({
+            asks[_token][askHead[_token]] = Order({
             higher_price : 0,
             lower_price : 0,
             price : _ask.price,
@@ -182,7 +190,7 @@ contract OrderBook is SyntheticTokenPair {
         // otherwise sort and place the ask
         while (true) {
             // if ask price is higher than the current price
-            if (_ask.price > _bestAsk.price) {
+            if (_ask.price >= _bestAsk.price) {
                 // if there is a higher price
                 if (_bestAsk.higher_price != 0) {
                     // move to the higher price
@@ -202,16 +210,16 @@ contract OrderBook is SyntheticTokenPair {
                     return;
                 }
             } else {
-                // if ask price is more than or equal to the current price
+                // if ask price is less than to the current price
                 asks[_token][askHead[_token]] = Order({
-                higher_price : _bestAsk.higher_price,
-                lower_price : _bestAskId,
+                higher_price : _bestAskId,
+                lower_price : asks[_token][_bestAskId].lower_price,
                 price : _ask.price,
                 maker : msg.sender,
                 amount : _ask.amount
                 });
-                asks[_token][_bestAsk.higher_price].lower_price = askHead[_token];
-                asks[_token][_bestAskId].higher_price = askHead[_token];
+                asks[_token][_bestAsk.lower_price].higher_price = askHead[_token];
+                asks[_token][_bestAskId].lower_price = askHead[_token];
                 askHead[_token] += 1;
                 return;
             }
@@ -332,6 +340,7 @@ contract OrderBook is SyntheticTokenPair {
             _mint(_pair, _bid.amount);
             _bid.amount = 0;
             bids[_otherToken][_bestBidId].amount -= _bid.amount;
+            return _bid;
         }
 
         _mint(_pair, _bestBid.amount);
