@@ -226,6 +226,59 @@ contract OrderBook is SyntheticTokenPair {
         }
     }
 
+    function take_ask(Tokens _token, uint _askId) public payable {
+        Order memory _ask = asks[_token][_askId];
+        require(_ask.amount > 0, 'ask does not exist');
+        require(_ask.price * _ask.amount == msg.value, 'insufficient funds');
+        _transfer(_ask.maker, msg.sender, _token, _ask.amount);
+        escrow -= msg.value;
+
+        if (_ask.lower_price != 0) {
+            asks[_token][_ask.lower_price].higher_price = _ask.higher_price;
+        } else {
+            bestAskId[_token] = _ask.higher_price;
+        }
+
+        if (_ask.higher_price != 0) {
+            asks[_token][_ask.higher_price].lower_price = _ask.lower_price;
+        }
+
+        delete asks[_token][_askId];
+        payable(_ask.maker).transfer(msg.value);
+    }
+
+    function cancel_ask(Tokens _token, uint _askId) public {
+        require(asks[_token][_askId].maker == msg.sender, 'not your ask');
+        delete asks[_token][_askId];
+    }
+
+    function take_bid(Tokens _token, uint _bidId) public {
+        Order memory _bid = bids[_token][_bidId];
+        uint _price = _bid.price * _bid.amount;
+        require(_bid.amount > 0, 'bid does not exist');
+        require(ledger[msg.sender][_token] >= _bid.amount, 'insufficient tokens');
+        _transfer(msg.sender, _bid.maker, _token, _bid.amount);
+        escrow -= _price;
+
+        if(_bid.higher_price != 0) {
+            bids[_token][_bid.higher_price].lower_price = _bid.lower_price;
+        } else {
+            bestBidId[_token] = _bid.lower_price;
+        }
+
+        if (_bid.lower_price != 0) {
+            bids[_token][_bid.lower_price].higher_price = _bid.higher_price;
+        }
+
+        delete bids[_token][_bidId];
+        payable(msg.sender).transfer(_price);
+    }
+
+    function cancel_bid(Tokens _token, uint _bidId) public {
+        require(bids[_token][_bidId].maker == msg.sender, 'not your bid');
+        delete bids[_token][_bidId];
+    }
+
     function _match_ask(Tokens _token, BidAsk memory _ask) private returns (BidAsk memory) {
         uint _bestBidId = bestBidId[_token];
         Order memory _bestBid = bids[_token][_bestBidId];
