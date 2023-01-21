@@ -26,7 +26,11 @@ contract OrderBook is SyntheticTokenPair {
     }
 
     // TODO migrate minted token price from escrow to a new var
+    // escrow is the funds held for orders in orderbook
+    // funds are either returned to maker or transferred to taker
+    // when a symetric order is matched and tokens are minted funds are tracked in the prize_pool var
     uint public escrow;
+    uint public prize_pool;
     // price for a token pair (amount paid to winner)
     uint public token_price = 20000;
 
@@ -77,7 +81,7 @@ contract OrderBook is SyntheticTokenPair {
             maker : msg.sender,
             amount : _bid.amount
             });
-            escrow += msg.value;
+            escrow += _bid.amount * _bid.price;
             bidHead[_token] += 1;
             return;
         }
@@ -96,7 +100,7 @@ contract OrderBook is SyntheticTokenPair {
             bids[_token][bestBidId[_token]].higher_price = bidHead[_token];
             bestBidId[_token] = bidHead[_token];
             bidHead[_token] += 1;
-            escrow += msg.value;
+            escrow += _bid.amount * _bid.price;
             return;
         }
 
@@ -231,7 +235,6 @@ contract OrderBook is SyntheticTokenPair {
         require(_ask.amount > 0, 'ask does not exist');
         require(_ask.price * _ask.amount == msg.value, 'insufficient funds');
         _transfer(_ask.maker, msg.sender, _token, _ask.amount);
-        escrow -= msg.value;
 
         if (_ask.lower_price != 0) {
             asks[_token][_ask.lower_price].higher_price = _ask.higher_price;
@@ -276,7 +279,10 @@ contract OrderBook is SyntheticTokenPair {
 
     function cancel_bid(Tokens _token, uint _bidId) public {
         require(bids[_token][_bidId].maker == msg.sender, 'not your bid');
+        uint _refund = bids[_token][_bidId].price * bids[_token][_bidId].amount;
         delete bids[_token][_bidId];
+        escrow -= _refund;
+        payable(msg.sender).transfer(_refund);
     }
 
     function _match_ask(Tokens _token, BidAsk memory _ask) private returns (BidAsk memory) {
@@ -324,6 +330,9 @@ contract OrderBook is SyntheticTokenPair {
         }
     }
 
+    // TODO
+    // add no re-entrant since can't modify state first due to recursion
+    // maybe batch transfer at end of loop?
     function _match_bid(Tokens _token, BidAsk memory _bid) private returns (BidAsk memory) {
         uint _bestAskId = bestAskId[_token];
         Order memory _bestAsk = asks[_token][_bestAskId];
@@ -345,8 +354,6 @@ contract OrderBook is SyntheticTokenPair {
             payable(_bestAsk.maker).transfer(_bid.amount * _bid.price);
             // update ask amount
             asks[_token][_bestAskId].amount -= _bid.amount;
-            // update escrow
-            escrow -= _bid.amount * _bid.price;
             // return remaining bid
             if (_bid.amount == _bestAsk.amount) {
                 delete (asks[_token][_bestAskId]);
@@ -359,8 +366,6 @@ contract OrderBook is SyntheticTokenPair {
             _transfer(_bestAsk.maker, msg.sender, _token, _bestAsk.amount);
             // transfer ether
             payable(_bestAsk.maker).transfer(_bestAsk.amount * _bid.price);
-            // update escrow
-            escrow -= _bestAsk.amount * _bid.price;
             // update bid amount
             _bid.amount -= _bestAsk.amount;
             // remove ask from book
@@ -391,12 +396,16 @@ contract OrderBook is SyntheticTokenPair {
         if (_bestBid.amount > _bid.amount) {
             // mint tokens
             _mint(_pair, _bid.amount);
+            prize_pool += _bid.amount * token_price;
+            escrow -= _bestBid.price * _bid.amount;
             _bid.amount = 0;
             bids[_otherToken][_bestBidId].amount -= _bid.amount;
             return _bid;
         }
 
         _mint(_pair, _bestBid.amount);
+        prize_pool += _bestBid.amount * token_price;
+        escrow -= _bestBid.price * _bestBid.amount;
         _bid.amount -= _bestBid.amount;
         bestBidId[_otherToken] = _bestBid.lower_price;
         bids[_otherToken][_bestBid.lower_price].higher_price = 0;

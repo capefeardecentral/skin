@@ -33,6 +33,15 @@ describe("OrderBook", () => {
     return { orderBook, owner, bob, alice, charles };
   }
 
+  async function checkBalance(orderBook) {
+    const balance = await ethers.provider.getBalance(orderBook.address);
+    const escrow = await orderBook.escrow();
+    const prize_pool = await orderBook.prize_pool();
+    const expectedFunds = prize_pool.add(escrow);
+
+    expect(balance).to.equal(expectedFunds);
+  }
+
   describe("Deployment", () => {
     it("Should successfully deploy", async () => {
       const { orderBook } = await loadFixture(deployOrderBook);
@@ -94,12 +103,14 @@ describe("OrderBook", () => {
       expect(price).to.equal(10000);
       expect(maker).to.equal(bob.address);
       expect(amount).to.equal(5);
+      await checkBalance(orderBook);
     });
 
     it("creates a bid after an initial bid is taken", async () => {
       const { orderBook, bob, charles } = await loadFixture(
         deployOrderBookWithOrders
       );
+
       await orderBook.connect(bob).make_ask(0, { price: 11000, amount: 2 });
       await orderBook
         .connect(charles)
@@ -111,10 +122,12 @@ describe("OrderBook", () => {
       const newBid = await orderBook.bids(0, 2);
       const oldBid = await orderBook.bids(0, 1);
 
+      expect(await orderBook.escrow()).to.equal(22000);
       expect(newBid.higher_price).to.equal(0);
       expect(newBid.lower_price).to.equal(0);
       expect(await orderBook.bestBidId(0)).to.equal(2);
       expect(await orderBook.bidHead(0)).to.equal(3);
+      await checkBalance(orderBook);
     });
 
     it("creates creates a bid after not finding a matching ask", async () => {
@@ -127,10 +140,12 @@ describe("OrderBook", () => {
         .make_bid(0, { price: 10000, amount: 2 }, { value: 20000 });
       const charlesBid = await orderBook.bids(0, 2);
 
+      expect(await orderBook.escrow()).to.equal(20000);
       expect(charlesBid.higher_price).to.equal(0);
       expect(charlesBid.lower_price).to.equal(0);
       expect(await orderBook.bestBidId(0)).to.equal(2);
       expect(await orderBook.bidHead(0)).to.equal(3);
+      await checkBalance(orderBook);
     });
 
     it("places a higher bid", async () => {
@@ -153,6 +168,7 @@ describe("OrderBook", () => {
       expect(bobsBid.lower_price).to.equal(0);
       expect(alicesBid.higher_price).to.equal(0);
       expect(alicesBid.lower_price).to.equal(1);
+      await checkBalance(orderBook);
     });
 
     it("sorts a bid between high and low", async () => {
@@ -183,6 +199,7 @@ describe("OrderBook", () => {
       expect(alicesBid.lower_price).to.equal(3);
       expect(charlesBid.higher_price).to.equal(2);
       expect(charlesBid.lower_price).to.equal(1);
+      await checkBalance(orderBook);
     });
 
     it("sorts a matching bid under the existing bid", async () => {
@@ -205,6 +222,7 @@ describe("OrderBook", () => {
       expect(bobsBid.lower_price).to.equal(2);
       expect(alicesBid.higher_price).to.equal(1);
       expect(alicesBid.lower_price).to.equal(0);
+      await checkBalance(orderBook);
     });
   });
 
@@ -218,14 +236,17 @@ describe("OrderBook", () => {
         .connect(alice)
         .make_bid(1, { price: 10000, amount: 5 }, { value: 50000 });
 
+      const token_price = await orderBook.token_price();
       // TODO I think we should split out escrow and token pool
-      // expect(await orderBook.escrow()).to.equal(0);
+      expect(await orderBook.escrow()).to.equal(0);
+      expect(await orderBook.prize_pool()).to.equal(token_price * 5);
       expect(await orderBook.ledger(bob.address, 0)).to.equal(5);
       expect(await orderBook.ledger(alice.address, 1)).to.equal(5);
       expect(await orderBook.bestBidId(0)).to.equal(0);
       expect(await orderBook.bestBidId(1)).to.equal(0);
       expect(await orderBook.bidHead(1)).to.equal(1);
       expect(await orderBook.bidHead(0)).to.equal(2);
+      await checkBalance(orderBook);
     });
 
     it("mints a token pair for a partial bid match less than", async () => {
@@ -238,13 +259,15 @@ describe("OrderBook", () => {
         .make_bid(1, { price: 10000, amount: 3 }, { value: 30000 });
 
       // TODO I think we should split out escrow and token pool
-      // expect(await orderBook.escrow()).to.equal(0);
+      expect(await orderBook.escrow()).to.equal(20000);
+      expect(await orderBook.prize_pool()).to.equal(60000);
       expect(await orderBook.ledger(bob.address, 0)).to.equal(3);
       expect(await orderBook.ledger(alice.address, 1)).to.equal(3);
       expect(await orderBook.bestBidId(0)).to.equal(1);
       expect(await orderBook.bestBidId(1)).to.equal(0);
       expect(await orderBook.bidHead(0)).to.equal(2);
       expect(await orderBook.bidHead(1)).to.equal(1);
+      await checkBalance(orderBook);
     });
 
     it("mints a token pair for a partial bid match greater than", async () => {
@@ -252,13 +275,16 @@ describe("OrderBook", () => {
       await orderBook
         .connect(bob)
         .make_bid(0, { price: 10000, amount: 5 }, { value: 50000 });
+
+      expect(await orderBook.escrow()).to.equal(50000);
       await orderBook
         .connect(alice)
         .make_bid(1, { price: 10000, amount: 8 }, { value: 80000 });
       const alicesBid = await orderBook.bids(1, 1);
 
       // TODO I think we should split out escrow and token pool
-      // expect(await orderBook.escrow()).to.equal(0);
+      expect(await orderBook.escrow()).to.equal(30000);
+      expect(await orderBook.prize_pool()).to.equal(100000);
       expect(await orderBook.ledger(bob.address, 0)).to.equal(5);
       expect(await orderBook.ledger(alice.address, 1)).to.equal(5);
       expect(await orderBook.bestBidId(0)).to.equal(0);
@@ -267,6 +293,7 @@ describe("OrderBook", () => {
       expect(await orderBook.bidHead(1)).to.equal(2);
       expect(alicesBid.amount).to.equal(3);
       expect(alicesBid.price).to.equal(10000);
+      await checkBalance(orderBook);
     });
 
     it("does not create a bid if settled", async () => {
@@ -279,6 +306,7 @@ describe("OrderBook", () => {
         .make_bid(1, { price: 10000, amount: 5 }, { value: 50000 });
 
       expect(await orderBook.bidHead(0)).to.equal(2);
+      await checkBalance(orderBook);
     });
   });
 
@@ -314,6 +342,7 @@ describe("OrderBook", () => {
       expect(price).to.equal(11000);
       expect(maker).to.equal(bob.address);
       expect(amount).to.equal(5);
+      await checkBalance(orderBook);
     });
 
     it("allows a user to place an unmatched ask - existing bid", async () => {
@@ -334,6 +363,7 @@ describe("OrderBook", () => {
       expect(price).to.equal(11000);
       expect(maker).to.equal(bob.address);
       expect(amount).to.equal(5);
+      await checkBalance(orderBook);
     });
 
     it("allows a user to place a better ask", async () => {
@@ -347,6 +377,7 @@ describe("OrderBook", () => {
       expect(lowerAsk.lower_price).to.equal(0);
       expect(higherAsk.higher_price).to.equal(0);
       expect(higherAsk.lower_price).to.equal(2);
+      await checkBalance(orderBook);
     });
 
     it("allows a user to place a worse ask", async () => {
@@ -361,6 +392,7 @@ describe("OrderBook", () => {
       expect(lowerAsk.lower_price).to.equal(0);
       expect(higherAsk.higher_price).to.equal(0);
       expect(higherAsk.lower_price).to.equal(1);
+      await checkBalance(orderBook);
     });
 
     it("sorts an ask between high and low", async () => {
@@ -380,6 +412,7 @@ describe("OrderBook", () => {
       expect(middleAsk.lower_price).to.equal(1);
       expect(higherAsk.higher_price).to.equal(0);
       expect(higherAsk.lower_price).to.equal(3);
+      await checkBalance(orderBook);
     });
 
     it("sorts an equal ask under the existing ask", async () => {
@@ -397,6 +430,7 @@ describe("OrderBook", () => {
       expect(secondAsk.higher_price).to.equal(0);
       expect(firstAsk.lower_price).to.equal(0);
       expect(firstAsk.higher_price).to.equal(2);
+      await checkBalance(orderBook);
     });
 
     it("settles a matched ask", async () => {
@@ -410,6 +444,7 @@ describe("OrderBook", () => {
 
       expect(await orderBook.ledger(bob.address, 0)).to.equal(3);
       expect(await orderBook.ledger(charles.address, 0)).to.equal(2);
+      await checkBalance(orderBook);
     });
 
     it("settles a partially matched ask less than", async () => {
@@ -426,6 +461,7 @@ describe("OrderBook", () => {
       expect(await orderBook.ledger(charles.address, 0)).to.equal(2);
       expect(await orderBook.bestAskId(0)).to.equal(1);
       expect(bobsAsk.amount).to.equal(1);
+      await checkBalance(orderBook);
     });
 
     it("settles a partially matched ask greater than ask first", async () => {
@@ -445,6 +481,7 @@ describe("OrderBook", () => {
       expect(await orderBook.bestAskId(0)).to.equal(0);
       expect(await orderBook.bestBidId(0)).to.equal(prevBidHead);
       expect(charlesBid.amount).to.equal(1);
+      await checkBalance(orderBook);
     });
 
     it("settles a partially matched ask greater than bid first", async () => {
@@ -463,6 +500,7 @@ describe("OrderBook", () => {
       expect(await orderBook.bestAskId(0)).to.equal(1);
       expect(await orderBook.bestBidId(0)).to.equal(0);
       expect(bobsAsk.amount).to.equal(1);
+      await checkBalance(orderBook);
     });
 
     it("settles a partially matched ask less than bid first", async () => {
@@ -481,6 +519,7 @@ describe("OrderBook", () => {
       expect(await orderBook.bestAskId(0)).to.equal(0);
       expect(await orderBook.bestBidId(0)).to.equal(prevBidHead);
       expect(charlesBid.amount).to.equal(1);
+      await checkBalance(orderBook);
     });
 
     it("does not add a bid if matched ask is settled in full", async () => {
@@ -494,6 +533,7 @@ describe("OrderBook", () => {
         .make_bid(0, { price: 11000, amount: 2 }, { value: 22000 });
 
       expect(await orderBook.bidHead(0)).to.equal(prevHead);
+      await checkBalance(orderBook);
     });
 
     it("successfully places an ask after the only ask is settled", async () => {
@@ -513,6 +553,7 @@ describe("OrderBook", () => {
       expect(newAsk.lower_price).to.equal(0);
       expect(await orderBook.bestAskId(0)).to.equal(2);
       expect(await orderBook.askHead(0)).to.equal(3);
+      await checkBalance(orderBook);
     });
   });
 
@@ -529,6 +570,7 @@ describe("OrderBook", () => {
       const canceledAsk = await orderBook.asks(0, 1);
       expect(canceledAsk.amount).to.equal(0);
       expect(canceledAsk.maker).to.equal(nil_addr);
+      await checkBalance(orderBook);
     });
 
     it("does not allow a user to cancel anothers ask", async () => {
@@ -544,6 +586,7 @@ describe("OrderBook", () => {
     it("reverts if the bid does not exist", async () => {
       const { orderBook, bob } = await loadFixture(deployOrderBookWithOrders);
       await expect(orderBook.connect(bob).cancel_bid(0, 5)).to.be.reverted;
+      await checkBalance(orderBook);
     });
 
     it("allows a user to cancel their own bid", async () => {
@@ -556,6 +599,7 @@ describe("OrderBook", () => {
       const canceledBid = await orderBook.bids(0, bidHead);
       expect(canceledBid.amount).to.equal(0);
       expect(canceledBid.maker).to.equal(nil_addr);
+      await checkBalance(orderBook);
     });
 
     it("does not allow a user to cancel anothers bid", async () => {
@@ -599,6 +643,7 @@ describe("OrderBook", () => {
       expect(ask.amount).to.equal(0);
       expect(ask.maker).to.equal(nil_addr);
       expect(await orderBook.ledger(charles.address, 0)).to.equal(2);
+      await checkBalance(orderBook);
     });
 
     it("updates the best ask when the best ask is taken", async () => {
@@ -617,6 +662,7 @@ describe("OrderBook", () => {
       const newBestAsk = await orderBook.asks(0, 2);
       expect(newBestAsk.higher_price).to.equal(0);
       expect(newBestAsk.lower_price).to.equal(0);
+      await checkBalance(orderBook);
     });
 
     it("resorts the orderbook when the best ask is taken", async () => {
@@ -637,6 +683,7 @@ describe("OrderBook", () => {
       expect(firstAsk.lower_price).to.equal(0);
       expect(thirdAsk.higher_price).to.equal(0);
       expect(thirdAsk.lower_price).to.equal(askHead);
+      await checkBalance(orderBook);
     });
   });
 
@@ -673,6 +720,7 @@ describe("OrderBook", () => {
       await orderBook.connect(bob).take_bid(0, bidHead);
       expect(await orderBook.ledger(bob.address, 0)).to.equal(3);
       expect(await orderBook.ledger(charles.address, 0)).to.equal(2);
+      await checkBalance(orderBook);
     });
 
     it("updates the best bid when the best bid is taken", async () => {
@@ -694,6 +742,7 @@ describe("OrderBook", () => {
       expect(await orderBook.bestBidId(0)).to.equal(bidHead.add(1));
       expect(newBestBid.higher_price).to.equal(0);
       expect(newBestBid.lower_price).to.equal(0);
+      await checkBalance(orderBook);
     });
 
     it("resorts the orderbook when a bid is taken", async () => {
@@ -722,6 +771,7 @@ describe("OrderBook", () => {
       expect(thirdBidBody.lower_price).to.equal(bidHead);
       expect(bidHeadBody.higher_price).to.equal(thirdBid);
       expect(bidHeadBody.lower_price).to.equal(0);
+      await checkBalance(orderBook);
     });
   });
 });
