@@ -6,10 +6,6 @@ import "./SyntheticTokenPair.sol";
 // Uncomment this line to use console.log
 // import "hardhat/console.sol";
 
-// TODO
-// - handle and test transfer of native currency
-// - take bid / cancel bid / take ask / cancel ask
-
 // OrderBook is a simple order book for bid ask orders on both ends of STP
 contract OrderBook is SyntheticTokenPair {
     struct Order {
@@ -25,7 +21,6 @@ contract OrderBook is SyntheticTokenPair {
         uint amount;
     }
 
-    // TODO migrate minted token price from escrow to a new var
     // escrow is the funds held for orders in orderbook
     // funds are either returned to maker or transferred to taker
     // when a symetric order is matched and tokens are minted funds are tracked in the prize_pool var
@@ -44,7 +39,6 @@ contract OrderBook is SyntheticTokenPair {
     mapping(Tokens => mapping(uint => Order)) public asks;
 
     constructor() {
-        // TODO migrate minted token price from escrow to a new var
         escrow = 0;
         bidHead[Tokens.NO] = 1;
         bidHead[Tokens.YES] = 1;
