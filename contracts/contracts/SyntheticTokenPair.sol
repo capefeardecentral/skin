@@ -6,6 +6,8 @@ pragma solidity ^0.8.9;
 
 // SyntheticTokenPair is a simplified ERC-721 non fungible token pair representing a boolean outcome of a prediction market.
 contract SyntheticTokenPair {
+    event Mint(address indexed to, uint256 amount, Tokens token);
+
     enum Tokens {
         NO,
         YES
@@ -23,6 +25,8 @@ contract SyntheticTokenPair {
         ledger[to.noAddr][Tokens.NO] += amount;
         ledger[to.yesAddr][Tokens.YES] += amount;
         pairs_minted += amount;
+        emit Mint(to.noAddr, amount, Tokens.NO);
+        emit Mint(to.yesAddr, amount, Tokens.YES);
     }
 
     function _transfer(address from, address to, Tokens token, uint256 amount) internal {

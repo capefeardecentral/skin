@@ -8,6 +8,12 @@ import "./SyntheticTokenPair.sol";
 
 // OrderBook is a simple order book for bid ask orders on both ends of STP
 contract OrderBook is SyntheticTokenPair {
+    event BidPlaced(Tokens token, uint price, uint amount, address maker);
+    event BidCanceled(Tokens token, uint bidId);
+    event AskPlaced(Tokens token, uint price, uint amount, address maker);
+    event AskCanceled(Tokens token, uint askId);
+    event OrderMatched(Tokens token, uint price, uint amount, address maker, address taker);
+
     struct Order {
         uint higher_price;
         uint lower_price;
@@ -77,6 +83,7 @@ contract OrderBook is SyntheticTokenPair {
             });
             escrow += _bid.amount * _bid.price;
             bidHead[_token] += 1;
+            emit BidPlaced(_token, _bid.price, _bid.amount, msg.sender);
             return;
         }
 
@@ -95,6 +102,7 @@ contract OrderBook is SyntheticTokenPair {
             bestBidId[_token] = bidHead[_token];
             bidHead[_token] += 1;
             escrow += _bid.amount * _bid.price;
+            emit BidPlaced(_token, _bid.price, _bid.amount, msg.sender);
             return;
         }
 
@@ -120,6 +128,7 @@ contract OrderBook is SyntheticTokenPair {
                     bids[_token][_bestBidId].lower_price = bidHead[_token];
                     bidHead[_token] += 1;
                     escrow += msg.value;
+                    emit BidPlaced(_token, _bid.price, _bid.amount, msg.sender);
                     return;
                 }
             } else {
@@ -135,6 +144,7 @@ contract OrderBook is SyntheticTokenPair {
                 bids[_token][_bestBidId].higher_price = bidHead[_token];
                 bidHead[_token] += 1;
                 escrow += msg.value;
+                emit BidPlaced(_token, _bid.price, _bid.amount, msg.sender);
                 return;
             }
         }
@@ -163,6 +173,7 @@ contract OrderBook is SyntheticTokenPair {
             amount : _ask.amount
             });
             askHead[_token] += 1;
+            emit AskPlaced(_token, _ask.price, _ask.amount, msg.sender);
             return;
         }
 
@@ -183,6 +194,7 @@ contract OrderBook is SyntheticTokenPair {
             asks[_token][bestAskId[_token]].lower_price = askHead[_token];
             bestAskId[_token] = askHead[_token];
             askHead[_token] += 1;
+            emit AskPlaced(_token, _ask.price, _ask.amount, msg.sender);
             return;
         }
         // otherwise sort and place the ask
@@ -205,6 +217,7 @@ contract OrderBook is SyntheticTokenPair {
                     });
                     asks[_token][_bestAskId].higher_price = askHead[_token];
                     askHead[_token] += 1;
+                    emit AskPlaced(_token, _ask.price, _ask.amount, msg.sender);
                     return;
                 }
             } else {
@@ -219,6 +232,7 @@ contract OrderBook is SyntheticTokenPair {
                 asks[_token][_bestAsk.lower_price].higher_price = askHead[_token];
                 asks[_token][_bestAskId].lower_price = askHead[_token];
                 askHead[_token] += 1;
+                emit AskPlaced(_token, _ask.price, _ask.amount, msg.sender);
                 return;
             }
         }
@@ -241,12 +255,14 @@ contract OrderBook is SyntheticTokenPair {
         }
 
         delete asks[_token][_askId];
+        emit OrderMatched(_token, _ask.price, _ask.amount, _ask.maker, msg.sender);
         payable(_ask.maker).transfer(msg.value);
     }
 
     function cancel_ask(Tokens _token, uint _askId) public {
         require(asks[_token][_askId].maker == msg.sender, 'not your ask');
         delete asks[_token][_askId];
+        emit AskCanceled(_token, _askId);
     }
 
     function take_bid(Tokens _token, uint _bidId) public {
@@ -268,6 +284,7 @@ contract OrderBook is SyntheticTokenPair {
         }
 
         delete bids[_token][_bidId];
+        emit OrderMatched(_token, _bid.price, _bid.amount, _bid.maker, msg.sender);
         payable(msg.sender).transfer(_price);
     }
 
@@ -276,6 +293,7 @@ contract OrderBook is SyntheticTokenPair {
         uint _refund = bids[_token][_bidId].price * bids[_token][_bidId].amount;
         delete bids[_token][_bidId];
         escrow -= _refund;
+        emit BidCanceled(_token, _bidId);
         payable(msg.sender).transfer(_refund);
     }
 
@@ -304,6 +322,7 @@ contract OrderBook is SyntheticTokenPair {
             escrow -= _ask.amount * _bestBid.price;
             // return remaining ask
             _ask.amount = 0;
+            emit OrderMatched(_token, _ask.price, _ask.amount, _bestBid.maker, msg.sender);
             return _ask;
         } else {
             // transfer tokens
@@ -320,6 +339,7 @@ contract OrderBook is SyntheticTokenPair {
             // update best bid
             bestBidId[_token] = _bestBid.lower_price;
             // return remaining ask
+            emit OrderMatched(_token, _ask.price, _ask.amount, _bestBid.maker, msg.sender);
             return _match_ask(_token, _ask);
         }
     }
@@ -354,6 +374,7 @@ contract OrderBook is SyntheticTokenPair {
                 bestAskId[_token] = _bestAsk.higher_price;
             }
             _bid.amount = 0;
+            emit OrderMatched(_token, _bid.price, _bid.amount, _bestAsk.maker, msg.sender);
             return _bid;
         } else {
             // transfer tokens
@@ -366,6 +387,7 @@ contract OrderBook is SyntheticTokenPair {
             delete (asks[_token][_bestAskId]);
             // update best ask
             bestAskId[_token] = _bestAsk.higher_price;
+            emit OrderMatched(_token, _bid.price, _bid.amount, _bestAsk.maker, msg.sender);
             // return remaining bid
             return _match_bid(_token, _bid);
         }
