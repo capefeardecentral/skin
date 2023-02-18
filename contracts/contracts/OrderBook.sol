@@ -29,7 +29,7 @@ contract OrderBook is SyntheticTokenPair {
 
     // escrow is the funds held for orders in orderbook
     // funds are either returned to maker or transferred to taker
-    // when a symetric order is matched and tokens are minted funds are tracked in the prize_pool var
+    // when a symmetric order is matched and tokens are minted funds are tracked in the prize_pool var
     uint public escrow;
     uint public prize_pool;
     // price for a token pair (amount paid to winner)
@@ -113,7 +113,6 @@ contract OrderBook is SyntheticTokenPair {
                 // if there is a lower price
                 if (_bestBid.lower_price != 0) {
                     // move to the lower price
-                    // TODO this is confusing, maybe use a different variable name
                     _bestBidId = _bestBid.lower_price;
                     _bestBid = bids[_token][_bestBid.lower_price];
                 } else {

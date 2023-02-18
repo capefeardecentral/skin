@@ -10,7 +10,8 @@ contract SyntheticTokenPair {
 
     enum Tokens {
         NO,
-        YES
+        YES,
+        NONE
     }
 
     struct MintPairAddrs {
