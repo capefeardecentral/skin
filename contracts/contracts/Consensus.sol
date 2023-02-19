@@ -60,7 +60,7 @@ contract Consensus is OrderBook {
         delete votes[msg.sender][consensus_winner];
     }
 
-    function _get_consensus_reached(uint _winVotes, uint_loseVotes) private pure returns (bool) {
+    function _get_consensus_reached(uint _winVotes, uint _loseVotes) private pure returns (bool) {
         // no one voted for consensus
         if (_winVotes == 0) {
             return false;
