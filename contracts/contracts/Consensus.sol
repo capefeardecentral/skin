@@ -61,27 +61,26 @@ contract Consensus is OrderBook {
     }
 
     function _get_consensus_reached(uint _winVotes, uint _loseVotes) private pure returns (bool) {
-        // no one voted for consensus
+        // no votes
         if (_winVotes == 0) {
             return false;
         }
 
-        // consensus was unanimous
-        if (_loseVotes == 0) {
-            return true;
-        }
+        uint _totalVotes = _winVotes + _loseVotes;
 
-        // set 66% threshold for consensus
-        return _winVotes >= (_loseVotes * 3) ? true : false;
+        // set threshold to 80%
+        return _winVotes * 5 >= _totalVotes * 4;
     }
 
     function _get_reward(uint _winVotes, uint _loseVotes) private pure returns (uint) {
+        // unanimous consensus
+        // we don't need to check for _winVotes 0 here since we already checked for consensus
         if (_loseVotes == 0) {
             return 0;
         }
 
-        uint _reward = _winVotes / _loseVotes;
-        return _reward;
+        // break down into token decimals skin erc20 has 8 decimals
+        return (_loseVotes * 10**8) / _winVotes;
     }
 
     // let's extend consensus if we can not defer to orderbook for a winner
