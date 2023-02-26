@@ -12,7 +12,13 @@ contract OrderBook is SyntheticTokenPair {
     event BidCanceled(Tokens token, uint bidId);
     event AskPlaced(Tokens token, uint price, uint amount, address maker);
     event AskCanceled(Tokens token, uint askId);
-    event OrderMatched(Tokens token, uint price, uint amount, address maker, address taker);
+    event OrderMatched(
+        Tokens token,
+        uint price,
+        uint amount,
+        address maker,
+        address taker
+    );
 
     struct Order {
         uint higher_price;
@@ -55,7 +61,10 @@ contract OrderBook is SyntheticTokenPair {
     function make_bid(Tokens _token, BidAsk memory _bid) public payable {
         require(_bid.price > 0, "Price must be greater than 0");
         require(_bid.amount > 0, "Amount must be greater than 0");
-        require(msg.value == _bid.price * _bid.amount, "Value must be equal to price * amount");
+        require(
+            msg.value == _bid.price * _bid.amount,
+            "Value must be equal to price * amount"
+        );
 
         uint _bestBidId = bestBidId[_token];
         Order memory _bestBid = bids[_token][_bestBidId];
@@ -75,11 +84,11 @@ contract OrderBook is SyntheticTokenPair {
             // initialize the bid book
             bestBidId[_token] = bidHead[_token];
             bids[_token][bidHead[_token]] = Order({
-            higher_price : 0,
-            lower_price : 0,
-            price : _bid.price,
-            maker : msg.sender,
-            amount : _bid.amount
+                higher_price: 0,
+                lower_price: 0,
+                price: _bid.price,
+                maker: msg.sender,
+                amount: _bid.amount
             });
             escrow += _bid.amount * _bid.price;
             bidHead[_token] += 1;
@@ -91,11 +100,11 @@ contract OrderBook is SyntheticTokenPair {
         if (_bid.price > _bestBid.price) {
             // add bid to the top of the book
             bids[_token][bidHead[_token]] = Order({
-            higher_price : 0,
-            lower_price : _bestBidId,
-            price : _bid.price,
-            maker : msg.sender,
-            amount : _bid.amount
+                higher_price: 0,
+                lower_price: _bestBidId,
+                price: _bid.price,
+                maker: msg.sender,
+                amount: _bid.amount
             });
 
             bids[_token][bestBidId[_token]].higher_price = bidHead[_token];
@@ -118,11 +127,11 @@ contract OrderBook is SyntheticTokenPair {
                 } else {
                     // otherwise add the bid to the bottom of the book
                     bids[_token][bidHead[_token]] = Order({
-                    higher_price : _bestBidId,
-                    lower_price : 0,
-                    price : _bid.price,
-                    maker : msg.sender,
-                    amount : _bid.amount
+                        higher_price: _bestBidId,
+                        lower_price: 0,
+                        price: _bid.price,
+                        maker: msg.sender,
+                        amount: _bid.amount
                     });
                     bids[_token][_bestBidId].lower_price = bidHead[_token];
                     bidHead[_token] += 1;
@@ -133,13 +142,15 @@ contract OrderBook is SyntheticTokenPair {
             } else {
                 // if bid price is greater than the current price
                 bids[_token][bidHead[_token]] = Order({
-                higher_price : _bestBid.higher_price,
-                lower_price : _bestBidId,
-                price : _bid.price,
-                maker : msg.sender,
-                amount : _bid.amount
+                    higher_price: _bestBid.higher_price,
+                    lower_price: _bestBidId,
+                    price: _bid.price,
+                    maker: msg.sender,
+                    amount: _bid.amount
                 });
-                bids[_token][_bestBid.higher_price].lower_price = bidHead[_token];
+                bids[_token][_bestBid.higher_price].lower_price = bidHead[
+                    _token
+                ];
                 bids[_token][_bestBidId].higher_price = bidHead[_token];
                 bidHead[_token] += 1;
                 escrow += msg.value;
@@ -152,7 +163,10 @@ contract OrderBook is SyntheticTokenPair {
     function make_ask(Tokens _token, BidAsk memory _ask) public {
         require(_ask.price > 0, "Price must be greater than 0");
         require(_ask.amount > 0, "Amount must be greater than 0");
-        require(ledger[msg.sender][_token] >= _ask.amount, "Insufficient balance");
+        require(
+            ledger[msg.sender][_token] >= _ask.amount,
+            "Insufficient balance"
+        );
 
         _ask = _match_ask(_token, _ask);
 
@@ -165,11 +179,11 @@ contract OrderBook is SyntheticTokenPair {
             // initialize the ask book
             bestAskId[_token] = askHead[_token];
             asks[_token][askHead[_token]] = Order({
-            higher_price : 0,
-            lower_price : 0,
-            price : _ask.price,
-            maker : msg.sender,
-            amount : _ask.amount
+                higher_price: 0,
+                lower_price: 0,
+                price: _ask.price,
+                maker: msg.sender,
+                amount: _ask.amount
             });
             askHead[_token] += 1;
             emit AskPlaced(_token, _ask.price, _ask.amount, msg.sender);
@@ -183,11 +197,11 @@ contract OrderBook is SyntheticTokenPair {
         if (_ask.price < _bestAsk.price) {
             // add bid to the top of the book
             asks[_token][askHead[_token]] = Order({
-            higher_price : _bestAskId,
-            lower_price : 0,
-            price : _ask.price,
-            maker : msg.sender,
-            amount : _ask.amount
+                higher_price: _bestAskId,
+                lower_price: 0,
+                price: _ask.price,
+                maker: msg.sender,
+                amount: _ask.amount
             });
 
             asks[_token][bestAskId[_token]].lower_price = askHead[_token];
@@ -208,11 +222,11 @@ contract OrderBook is SyntheticTokenPair {
                 } else {
                     // otherwise add the ask to the bottom of the book
                     asks[_token][askHead[_token]] = Order({
-                    higher_price : 0,
-                    lower_price : _bestAskId,
-                    price : _ask.price,
-                    maker : msg.sender,
-                    amount : _ask.amount
+                        higher_price: 0,
+                        lower_price: _bestAskId,
+                        price: _ask.price,
+                        maker: msg.sender,
+                        amount: _ask.amount
                     });
                     asks[_token][_bestAskId].higher_price = askHead[_token];
                     askHead[_token] += 1;
@@ -222,13 +236,15 @@ contract OrderBook is SyntheticTokenPair {
             } else {
                 // if ask price is less than to the current price
                 asks[_token][askHead[_token]] = Order({
-                higher_price : _bestAskId,
-                lower_price : asks[_token][_bestAskId].lower_price,
-                price : _ask.price,
-                maker : msg.sender,
-                amount : _ask.amount
+                    higher_price: _bestAskId,
+                    lower_price: asks[_token][_bestAskId].lower_price,
+                    price: _ask.price,
+                    maker: msg.sender,
+                    amount: _ask.amount
                 });
-                asks[_token][_bestAsk.lower_price].higher_price = askHead[_token];
+                asks[_token][_bestAsk.lower_price].higher_price = askHead[
+                    _token
+                ];
                 asks[_token][_bestAskId].lower_price = askHead[_token];
                 askHead[_token] += 1;
                 emit AskPlaced(_token, _ask.price, _ask.amount, msg.sender);
@@ -239,8 +255,8 @@ contract OrderBook is SyntheticTokenPair {
 
     function take_ask(Tokens _token, uint _askId) public payable {
         Order memory _ask = asks[_token][_askId];
-        require(_ask.amount > 0, 'ask does not exist');
-        require(_ask.price * _ask.amount == msg.value, 'insufficient funds');
+        require(_ask.amount > 0, "ask does not exist");
+        require(_ask.price * _ask.amount == msg.value, "insufficient funds");
         _transfer(_ask.maker, msg.sender, _token, _ask.amount);
 
         if (_ask.lower_price != 0) {
@@ -254,12 +270,18 @@ contract OrderBook is SyntheticTokenPair {
         }
 
         delete asks[_token][_askId];
-        emit OrderMatched(_token, _ask.price, _ask.amount, _ask.maker, msg.sender);
+        emit OrderMatched(
+            _token,
+            _ask.price,
+            _ask.amount,
+            _ask.maker,
+            msg.sender
+        );
         payable(_ask.maker).transfer(msg.value);
     }
 
     function cancel_ask(Tokens _token, uint _askId) public {
-        require(asks[_token][_askId].maker == msg.sender, 'not your ask');
+        require(asks[_token][_askId].maker == msg.sender, "not your ask");
         delete asks[_token][_askId];
         emit AskCanceled(_token, _askId);
     }
@@ -267,12 +289,15 @@ contract OrderBook is SyntheticTokenPair {
     function take_bid(Tokens _token, uint _bidId) public {
         Order memory _bid = bids[_token][_bidId];
         uint _price = _bid.price * _bid.amount;
-        require(_bid.amount > 0, 'bid does not exist');
-        require(ledger[msg.sender][_token] >= _bid.amount, 'insufficient tokens');
+        require(_bid.amount > 0, "bid does not exist");
+        require(
+            ledger[msg.sender][_token] >= _bid.amount,
+            "insufficient tokens"
+        );
         _transfer(msg.sender, _bid.maker, _token, _bid.amount);
         escrow -= _price;
 
-        if(_bid.higher_price != 0) {
+        if (_bid.higher_price != 0) {
             bids[_token][_bid.higher_price].lower_price = _bid.lower_price;
         } else {
             bestBidId[_token] = _bid.lower_price;
@@ -283,12 +308,18 @@ contract OrderBook is SyntheticTokenPair {
         }
 
         delete bids[_token][_bidId];
-        emit OrderMatched(_token, _bid.price, _bid.amount, _bid.maker, msg.sender);
+        emit OrderMatched(
+            _token,
+            _bid.price,
+            _bid.amount,
+            _bid.maker,
+            msg.sender
+        );
         payable(msg.sender).transfer(_price);
     }
 
     function cancel_bid(Tokens _token, uint _bidId) public {
-        require(bids[_token][_bidId].maker == msg.sender, 'not your bid');
+        require(bids[_token][_bidId].maker == msg.sender, "not your bid");
         uint _refund = bids[_token][_bidId].price * bids[_token][_bidId].amount;
         delete bids[_token][_bidId];
         escrow -= _refund;
@@ -296,7 +327,10 @@ contract OrderBook is SyntheticTokenPair {
         payable(msg.sender).transfer(_refund);
     }
 
-    function _match_ask(Tokens _token, BidAsk memory _ask) private returns (BidAsk memory) {
+    function _match_ask(
+        Tokens _token,
+        BidAsk memory _ask
+    ) private returns (BidAsk memory) {
         uint _bestBidId = bestBidId[_token];
         Order memory _bestBid = bids[_token][_bestBidId];
 
@@ -321,7 +355,13 @@ contract OrderBook is SyntheticTokenPair {
             escrow -= _ask.amount * _bestBid.price;
             // return remaining ask
             _ask.amount = 0;
-            emit OrderMatched(_token, _ask.price, _ask.amount, _bestBid.maker, msg.sender);
+            emit OrderMatched(
+                _token,
+                _ask.price,
+                _ask.amount,
+                _bestBid.maker,
+                msg.sender
+            );
             return _ask;
         } else {
             // transfer tokens
@@ -338,7 +378,13 @@ contract OrderBook is SyntheticTokenPair {
             // update best bid
             bestBidId[_token] = _bestBid.lower_price;
             // return remaining ask
-            emit OrderMatched(_token, _ask.price, _ask.amount, _bestBid.maker, msg.sender);
+            emit OrderMatched(
+                _token,
+                _ask.price,
+                _ask.amount,
+                _bestBid.maker,
+                msg.sender
+            );
             return _match_ask(_token, _ask);
         }
     }
@@ -346,7 +392,10 @@ contract OrderBook is SyntheticTokenPair {
     // TODO
     // add no re-entrant since can't modify state first due to recursion
     // maybe batch transfer at end of loop?
-    function _match_bid(Tokens _token, BidAsk memory _bid) private returns (BidAsk memory) {
+    function _match_bid(
+        Tokens _token,
+        BidAsk memory _bid
+    ) private returns (BidAsk memory) {
         uint _bestAskId = bestAskId[_token];
         Order memory _bestAsk = asks[_token][_bestAskId];
 
@@ -373,7 +422,13 @@ contract OrderBook is SyntheticTokenPair {
                 bestAskId[_token] = _bestAsk.higher_price;
             }
             _bid.amount = 0;
-            emit OrderMatched(_token, _bid.price, _bid.amount, _bestAsk.maker, msg.sender);
+            emit OrderMatched(
+                _token,
+                _bid.price,
+                _bid.amount,
+                _bestAsk.maker,
+                msg.sender
+            );
             return _bid;
         } else {
             // transfer tokens
@@ -386,13 +441,22 @@ contract OrderBook is SyntheticTokenPair {
             delete (asks[_token][_bestAskId]);
             // update best ask
             bestAskId[_token] = _bestAsk.higher_price;
-            emit OrderMatched(_token, _bid.price, _bid.amount, _bestAsk.maker, msg.sender);
+            emit OrderMatched(
+                _token,
+                _bid.price,
+                _bid.amount,
+                _bestAsk.maker,
+                msg.sender
+            );
             // return remaining bid
             return _match_bid(_token, _bid);
         }
     }
 
-    function _match_token_pair_bids(Tokens _token, BidAsk memory _bid) private returns (BidAsk memory) {
+    function _match_token_pair_bids(
+        Tokens _token,
+        BidAsk memory _bid
+    ) private returns (BidAsk memory) {
         Tokens _otherToken = _token == Tokens.YES ? Tokens.NO : Tokens.YES;
 
         uint _bestBidId = bestBidId[_otherToken];
@@ -404,8 +468,8 @@ contract OrderBook is SyntheticTokenPair {
         }
 
         MintPairAddrs memory _pair = MintPairAddrs({
-        noAddr : _token == Tokens.NO ? msg.sender : _bestBid.maker,
-        yesAddr : _token == Tokens.YES ? msg.sender : _bestBid.maker
+            noAddr: _token == Tokens.NO ? msg.sender : _bestBid.maker,
+            yesAddr: _token == Tokens.YES ? msg.sender : _bestBid.maker
         });
 
         if (_bestBid.amount > _bid.amount) {
@@ -432,5 +496,4 @@ contract OrderBook is SyntheticTokenPair {
 
         return _bid;
     }
-
 }

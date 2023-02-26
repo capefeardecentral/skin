@@ -15,6 +15,7 @@
     "generate": "npx hardhat generate",
     "send": "npx hardhat send",
     "test": "npx hardhat test",
+    "prettier": "prettier --write contracts/**/*.sol",
     "verify:rinkeby": "npx hardhat verify --network rinkeby",
     "verify:mainnet": "npx hardhat verify --network mainnet"
   },
@@ -31,6 +32,8 @@
     "chai": "^4.2.0",
     "hardhat": "^2.12.2",
     "hardhat-gas-reporter": "^1.0.8",
+    "prettier": "^2.8.4",
+    "prettier-plugin-solidity": "^1.1.2",
     "qrcode-terminal": "^0.12.0",
     "solidity-coverage": "^0.8.1",
     "ts-node": ">=8.0.0",

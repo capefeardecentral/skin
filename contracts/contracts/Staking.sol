@@ -10,6 +10,7 @@ contract Staking {
     IERC20 public skinToken;
 
     mapping(address => uint256) public stakedBalance;
+
     // TODO track staked tokens being used as a validator and prevent withdrawal on those tokens
 
     constructor(address _skinToken) {
@@ -25,7 +26,10 @@ contract Staking {
 
     function unstake(uint256 _amount) external {
         require(_amount > 0, "Staking: Cannot unstake 0");
-        require(stakedBalance[msg.sender] >= _amount, "Staking: Insufficient balance");
+        require(
+            stakedBalance[msg.sender] >= _amount,
+            "Staking: Insufficient balance"
+        );
         skinToken.transfer(msg.sender, _amount);
         stakedBalance[msg.sender] -= _amount;
         emit Unstaked(msg.sender, _amount);

@@ -30,10 +30,14 @@ contract SyntheticTokenPair {
         emit Mint(to.yesAddr, amount, Tokens.YES);
     }
 
-    function _transfer(address from, address to, Tokens token, uint256 amount) internal {
+    function _transfer(
+        address from,
+        address to,
+        Tokens token,
+        uint256 amount
+    ) internal {
         require(ledger[from][token] >= amount, "Insufficient balance");
         ledger[from][token] -= amount;
         ledger[to][token] += amount;
     }
-
 }
