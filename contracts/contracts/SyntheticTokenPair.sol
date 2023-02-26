@@ -20,12 +20,12 @@ contract SyntheticTokenPair {
     }
 
     mapping(address => mapping(Tokens => uint256)) public ledger;
-    uint public pairs_minted;
+    uint public pairsMinted;
 
     function _mint(MintPairAddrs memory to, uint256 amount) internal {
         ledger[to.noAddr][Tokens.NO] += amount;
         ledger[to.yesAddr][Tokens.YES] += amount;
-        pairs_minted += amount;
+        pairsMinted += amount;
         emit Mint(to.noAddr, amount, Tokens.NO);
         emit Mint(to.yesAddr, amount, Tokens.YES);
     }

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./OrderBook.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {OrderBook} from "./OrderBook.sol";
 
 contract Consensus is OrderBook {
     event Vote(address indexed user, Tokens token, uint256 amount);
@@ -14,7 +14,7 @@ contract Consensus is OrderBook {
     uint256 public voteStartTime;
     uint256 public voteEndTime;
     uint256 public reward;
-    Tokens public consensus_winner = Tokens.NONE;
+    Tokens public consensusWinner = Tokens.NONE;
 
     constructor(address _skinToken, uint _voteDuration) {
         skinToken = IERC20(_skinToken);
@@ -26,7 +26,7 @@ contract Consensus is OrderBook {
         require(_amount > 0, "Consensus: Cannot vote 0");
         require(
             block.timestamp >= voteStartTime,
-            "Consensus: Voting has not started"
+            "Consensus: Voting not started"
         );
         require(block.timestamp < voteEndTime, "Consensus: Voting has ended");
 
@@ -46,18 +46,18 @@ contract Consensus is OrderBook {
             "Consensus: Voting has not ended"
         );
         require(
-            consensus_winner == Tokens.NONE,
-            "Consensus: vote is already settled"
+            consensusWinner == Tokens.NONE,
+            "Consensus: vote already settled"
         );
         Tokens consensusResult = yesVotes > noVotes ? Tokens.YES : Tokens.NO;
-        bool consensusReached = _get_consensus_reached(yesVotes, noVotes);
+        bool consensusReached = _getConsensusReached(yesVotes, noVotes);
         if (consensusReached) {
-            consensus_winner = consensusResult == Tokens.YES
+            consensusWinner = consensusResult == Tokens.YES
                 ? Tokens.YES
                 : Tokens.NO;
-            reward = consensus_winner == Tokens.YES
-                ? _get_reward(yesVotes, noVotes)
-                : _get_reward(noVotes, yesVotes);
+            reward = consensusWinner == Tokens.YES
+                ? _getReward(yesVotes, noVotes)
+                : _getReward(noVotes, yesVotes);
         } else {
             // fail with error
             revert("Consensus: Consensus not reached");
@@ -70,15 +70,15 @@ contract Consensus is OrderBook {
             "Consensus: Voting has not ended"
         );
         require(
-            consensus_winner != Tokens.NONE,
-            "Consensus: Consensus has not been reached"
+            consensusWinner != Tokens.NONE,
+            "Consensus: Consensus not reached"
         );
-        uint256 _reward = votes[msg.sender][consensus_winner] * reward;
+        uint256 _reward = votes[msg.sender][consensusWinner] * reward;
         skinToken.transfer(msg.sender, _reward);
-        delete votes[msg.sender][consensus_winner];
+        delete votes[msg.sender][consensusWinner];
     }
 
-    function _get_consensus_reached(
+    function _getConsensusReached(
         uint _winVotes,
         uint _loseVotes
     ) private pure returns (bool) {
@@ -93,7 +93,7 @@ contract Consensus is OrderBook {
         return _winVotes * 5 >= _totalVotes * 4;
     }
 
-    function _get_reward(
+    function _getReward(
         uint _winVotes,
         uint _loseVotes
     ) private pure returns (uint) {
@@ -109,14 +109,14 @@ contract Consensus is OrderBook {
 
     // let's extend consensus if we can not defer to orderbook for a winner
     // this would likely happen if an outcome is not reached by the originally set voteEndTime
-    function _extend_consensus(uint _duration) internal {
+    function _extendConsensus(uint _duration) internal {
         require(
             block.timestamp >= voteEndTime,
             "Consensus: Voting has not ended"
         );
         require(
-            consensus_winner == Tokens.NONE,
-            "Consensus: vote is already settled"
+            consensusWinner == Tokens.NONE,
+            "Consensus: vote already settled"
         );
         voteEndTime = block.timestamp + _duration;
     }

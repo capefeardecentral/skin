@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract Staking {
     event Staked(address indexed user, uint256 amount);
@@ -30,8 +30,8 @@ contract Staking {
             stakedBalance[msg.sender] >= _amount,
             "Staking: Insufficient balance"
         );
-        skinToken.transfer(msg.sender, _amount);
         stakedBalance[msg.sender] -= _amount;
         emit Unstaked(msg.sender, _amount);
+        skinToken.transfer(msg.sender, _amount);
     }
 }
